@@ -99,7 +99,9 @@
   /* ── Certifications grid ──────────────────────── */
   .cert-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.8rem; }
   .cert-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem 1.2rem; transition:transform .3s,border-color .3s,box-shadow .3s; cursor:default; }
-  .cert-card:hover { transform:translateY(-4px) scale(1.02); border-color:var(--accent); box-shadow:0 8px 30px rgba(56,189,248,.12); }
+  @media(hover:hover) and (pointer:fine) {
+    .cert-card:hover { transform:translateY(-4px) scale(1.02); border-color:var(--accent); box-shadow:0 8px 30px rgba(56,189,248,.12); }
+  }
   .cert-name { font-weight:700; font-size:.95rem; color:#fff; }
   .cert-org { font-size:.82rem; color:var(--muted); margin-top:.15rem; }
 
@@ -112,6 +114,12 @@
   .cert-card.is-badge-visible .cert-content { opacity:.22; filter:blur(.5px); }
   .cert-card.is-badge-visible .cert-badge { opacity:1; }
   .cert-card.is-badge-visible .cert-badge img { transform:translateY(0) scale(1); }
+  @media(hover:none), (pointer:coarse) {
+    .orb { animation:none; }
+    .cert-card { touch-action:manipulation; }
+    .cert-card.is-badge-visible .cert-content { filter:none; }
+    .cert-badge img { filter:none; }
+  }
 
   /* ── Projects ─────────────────────────────────── */
   .proj-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.3rem 1.5rem; margin-bottom:.9rem; transition:border-color .3s,transform .3s; }
@@ -263,19 +271,28 @@
   }
 
   document.querySelectorAll('[data-badge]').forEach(card => {
+    let pointerType = '';
+    card.addEventListener('pointerdown', event => {
+      pointerType = event.pointerType;
+    });
     card.addEventListener('pointerenter', event => {
-      if (event.pointerType !== 'touch') showBadge(card);
+      if (event.pointerType === 'mouse' && matchMedia('(hover: hover)').matches) showBadge(card);
     });
     card.addEventListener('pointerleave', event => {
-      if (event.pointerType !== 'touch' && activeBadge === card) hideBadge();
+      if (event.pointerType === 'mouse' && pointerType !== 'touch' && activeBadge === card) hideBadge();
     });
-    card.addEventListener('focusin', () => showBadge(card));
+    card.addEventListener('focusin', () => {
+      if (pointerType !== 'touch') showBadge(card);
+    });
     card.addEventListener('focusout', () => {
       if (activeBadge === card) hideBadge();
     });
+    card.addEventListener('keydown', () => { pointerType = ''; });
     card.addEventListener('click', event => {
-      const touch = event.pointerType === 'touch' || (!event.pointerType && matchMedia('(hover: none)').matches);
-      if (touch && event.detail > 0 && touchBadge !== card) {
+      // Safari may label a touch-generated click as a mouse event.
+      // Use the preceding pointerdown rather than relying on click metadata.
+      const touch = pointerType === 'touch' || event.pointerType === 'touch' || (event.detail !== 0 && matchMedia('(hover: none)').matches);
+      if (touch && touchBadge !== card) {
         event.preventDefault();
         showBadge(card);
         touchBadge = card;
